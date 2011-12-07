@@ -6,15 +6,15 @@ from wiki.utils.pages import page_types
 from django.template import RequestContext
 from wiki.models.pages import Page
 from django.http import Http404
-import random as random_module
 from wiki.utils.docx_to_md import markdownify
+import random as random_module
 from wiki.models.history import HistoryItem
 from django.contrib.auth.models import User
 from wiki.utils.currents import current_term, current_year
 from views.main import register
 from datetime import datetime
 
-def show(request, department, number, page_type, term, year, slug, **kwargs):
+def show(request, department, number, page_type, term, year, slug):
 	course = get_object_or_404(Course, department=department, number=int(number))
 	course_sem = get_object_or_404(CourseSemester, course=course, term=term, year=year)
 	page = get_object_or_404(Page, course_sem=course_sem, page_type=page_type, slug=slug)
@@ -27,12 +27,6 @@ def show(request, department, number, page_type, term, year, slug, **kwargs):
 		'edit_url': page.get_url() + '/edit',
 		'history_url': page.get_url() + '/history',
 	}
-	if 'success' in kwargs:
-		if  kwargs['success']=="edit":
-			data['success']="Edition"
-		if kwargs['success']=='create':
-			data['success']="Creation"
-	print data;
 	return render(request, "pages/show.html", data)
 
 def history(request, department, number, page_type, term, year, slug):
@@ -100,16 +94,14 @@ def edit(request, department, number, page_type, term, year, slug):
 			'course': course,
 			'page': page,
 		}
-		
-		
 
 		# Only change the metadata if the user is a moderator
 		if request.user.is_staff:
 			page.edit(request.POST)
-		
+
 		# Add the history item
 		course.add_event(page=page, user=request.user, action='edited', message=message)
-		return show(request, department, number, page_type, term, year, slug,success="edit")
+		return show(request, department, number, page_type, term, year, slug)
 
 	field_templates = page_type_obj.get_editable_fields()
 	non_field_templates = ['pages/%s_data.html' % field for field in page_type_obj.editable_fields]
@@ -127,11 +119,11 @@ def edit(request, department, number, page_type, term, year, slug):
 	return render(request, "pages/edit.html", data)
 
 def create(request, department, number, page_type):
-	
 	if not request.user.is_authenticated():
 		return register(request)
 
 	course = get_object_or_404(Course, department=department, number=int(number))
+
 	if page_type not in page_types:
 		raise Http404
 
@@ -147,7 +139,7 @@ def create(request, department, number, page_type):
 		'exam_types': exam_types,
 		'current_exam_type': exam_types[0], # default
 		'edit_mode': False,
-	}        
+	}
 	if "test" in request.GET:
 		content = markdownify("test.docx","test")
 		data['content'] = content
@@ -186,7 +178,7 @@ def create(request, department, number, page_type):
 			# Add the history item - should be done automatically one day
 			course.add_event(page=new_page, user=request.user, action='created', message=commit_message)
 			data['page'] = new_page
-			return show(request, department, number, page_type, course_sem.term, course_sem.year, new_page.slug,success="create")
+			return show(request, department, number, page_type, course_sem.term, course_sem.year, new_page.slug)
 
 	return render(request, 'pages/create.html', data)
 

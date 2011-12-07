@@ -124,7 +124,7 @@ def parse_table(table,document,name):
             width = sum(biggest_col_widths[col_index:col_index+cell_span])+(cell_span-1)
             row_string_data.append(table_data[i][col_index]['data'])
             col_index+=cell_span            
-        table_string+="|".join(row_string_data)+"\n"
+        table_string+=" | ".join(row_string_data)+"\n"
         if i==0:
             empty_row = []
             for j in xrange(col_count):
@@ -452,5 +452,5 @@ def parse_picture(pic,document,name):
    # print current_picture
     return "#a picture link#"
 
-#print markdownify("test.docx","name")
+print markdownify("../../test.docx","name")
 
