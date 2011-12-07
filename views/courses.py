@@ -134,67 +134,6 @@ def watch(request, department, number):
 	return overview(request, department, number)
 
 
-def recent(request, department, number):
-	course = get_object_or_404(Course, department=department, number=int(number))
-	raw_history = course.recent_activity(limit=0);
-	history = [];
-	group_count = 0;
-	group = [];
-	count = 0;
-	new_group = False;
-	for item in raw_history:
-		# new group of a same action
-		if group_count == 0:
-			new_group = False;
-			group.append(item)
-			group_count+=1
-		
-		#check to see if the current item can be put into the current group	
-		else:
-			#edit
-			if(group[0].page):
-				if(group[0].page == item.page and group[0].action == item.action):
-					group.append(item)
-					group_count+=1
-				else:
-					new_group = True;
-			#(un)watch
-			else:
-				if(group[0].action == item.action):
-					group.append(item)
-					group_count+=1
-				else:
-					new_group = True;
-		if(count == len(raw_history)-1):
-			new_group=True;
-			
-			
-		if(new_group):
-			if(group_count>=4):#minimum num of same events before collapsing
-				history.append(collapse(group));
-			else:
-				for item in group:
-					history_item={};
-					history_item["owner"] = item.user;
-					if(item.page):
-						history_item["event"] = "%s %s" %(item.action,item.page)
-					else:
-						history_item["event"] = "%s this course" % (item.action)
-					history_item["time"] = item.timestamp;
-					history_item["time_since"]=item.get_timesince();
-					history_item["item"] = item;
-					history.append(history_item);
-			group_count = 0;
-			group = [];
-		count+=1
-			
-	data = {
-			"course":course,
-			"history":history
-		}
-	print data
-	return render(request, 'courses/recent.html', data)
-	
 def overview(request, department, number):
 	course = get_object_or_404(Course, department=department, number=int(number))
 
@@ -225,3 +164,49 @@ def overview(request, department, number):
 		'current_sem': course.get_current_semester(),
 	}
 	return render(request, 'courses/overview.html', data)
+
+def recent(request, department, number):
+	course = get_object_or_404(Course, department=department, number=int(number))
+	raw_history = course.recent_activity(limit=0) # order: newest to oldest
+	temp_history = []
+
+	# First pass - collapse all watchings by the same user into one event
+	# Only keep the earliest one
+	users_watching = []
+	for item in reversed(raw_history):
+		if item.action == 'started watching' and item.user in users_watching: # awful lol
+			continue
+		else:
+			item.group_count = 0
+			temp_history.append(item)
+			if item.action == 'started watching':
+				users_watching.append(item.user)
+
+	history = []
+
+	# Add the first one
+	if temp_history:
+		history.append(temp_history[0])
+
+		# Second pass - combine multiple consecutive edits into one, use the latest
+		for item in temp_history[1:]:
+			last_item = history[-1]
+			# If the last action was an edit by the same user, on the same page:
+			if item.action == last_item.action == 'edited' and item.page == last_item.page != None and item.user == last_item.user:
+				last_item.group_count += 1
+			# Otherwise, if the last action was also a watch:
+			elif item.action == last_item.action == 'started watching':
+				last_item.group_count += 1
+				last_item.action += ' this course'
+			else:
+				# Only append if you can't group
+				history.append(item)
+				if item.action == 'started watching':
+					item.action += ' this course'
+
+	data = {
+		'course': course,
+		'history': reversed(history) # have to reverse it again to get the right order
+	}
+
+	return render(request, 'courses/recent.html', data)
