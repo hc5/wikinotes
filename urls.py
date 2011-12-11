@@ -57,6 +57,7 @@ direct_to_view = {
 		course + '/create/' + page_type: 'create',
 		page: 'show',
 		page + '/edit': 'edit',
+		page + '/edit_inline': 'inline',
 		page + '/history': 'history',
 		page + '/commit/' + sha: 'commit',
 	}
@@ -85,3 +86,4 @@ for prefix, filenames in template_urls.iteritems():
 for prefix, mapping in direct_to_view.iteritems():
 	urls = [url('^' + regex + '/?$', view) for regex, view in mapping.iteritems()]
 	urlpatterns += patterns('views.' + prefix, *urls)
+
