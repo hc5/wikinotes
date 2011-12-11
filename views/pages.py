@@ -5,8 +5,7 @@ from wiki.utils.gitutils import Git
 from wiki.utils.pages import page_types
 from django.template import RequestContext
 from wiki.models.pages import Page
-from django.http import Http404
-from wiki.utils.docx_to_md import markdownify
+from django.http import Http404, HttpResponseRedirect
 import random as random_module
 from wiki.models.history import HistoryItem
 from django.contrib.auth.models import User
@@ -73,6 +72,40 @@ def commit(request, department, number, page_type, term, year, slug, hash):
 	}
 
 	return render(request, "pages/commit.html", data)
+
+def inline(request, department, number, page_type, term, year, slug):
+	if not request.user.is_authenticated():
+		return register(request)
+
+	if page_type not in page_types:
+		raise Http404
+
+	course = get_object_or_404(Course, department=department, number=int(number))
+	course_sem = get_object_or_404(CourseSemester, course=course, term=term, year=year)
+	page = get_object_or_404(Page, course_sem=course_sem, page_type=page_type, slug=slug)
+	oldcontent=page.load_content()
+	revised = request.POST['content']
+	start = int(request.POST['start'])
+	end = int(request.POST['end'])
+	oldlines = oldcontent.splitlines();
+	revisedlines = revised.splitlines();
+	newlines = oldlines[:start]
+	newlines.extend(revisedlines)
+	newlines.extend(oldlines[end:])
+	# Just do save sections with the data
+	username = request.user.username
+	message = request.POST['message']
+	page.save_content("\n".join(newlines), message, username)
+	
+	# Only change the metadata if the user is a moderator
+	if request.user.is_staff:
+		page.edit(request.POST)
+
+	# Add the history item
+	course.add_event(page=page, user=request.user, action='edited', message=message)
+	return HttpResponseRedirect(page.get_url())
+
+
 def edit(request, department, number, page_type, term, year, slug):
 	if not request.user.is_authenticated():
 		return register(request)
@@ -101,7 +134,8 @@ def edit(request, department, number, page_type, term, year, slug):
 
 		# Add the history item
 		course.add_event(page=page, user=request.user, action='edited', message=message)
-		return show(request, department, number, page_type, term, year, slug)
+		return HttpResponseRedirect(page.get_url())
+		#return show(request, department, number, page_type, term, year, slug)
 
 	field_templates = page_type_obj.get_editable_fields()
 	non_field_templates = ['pages/%s_data.html' % field for field in page_type_obj.editable_fields]
@@ -140,10 +174,6 @@ def create(request, department, number, page_type):
 		'current_exam_type': exam_types[0], # default
 		'edit_mode': False,
 	}
-	if "test" in request.GET:
-		content = markdownify("test.docx","test")
-		data['content'] = content
-		return render(request, 'pages/create.html', data)
 	if request.method == 'POST':
 		errors = page_type_obj.find_errors(request.POST)
 		kwargs = page_type_obj.get_kwargs(request.POST)

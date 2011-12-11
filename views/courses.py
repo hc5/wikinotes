@@ -3,7 +3,6 @@ from wiki.models.courses import Course, CourseSemester
 from wiki.models.faculties import Faculty
 from wiki.models.departments import Department
 from wiki.utils.pages import page_types
-from wiki.utils.history import collapse
 from django.template import RequestContext
 from wiki.models.pages import Page
 import random as random_module

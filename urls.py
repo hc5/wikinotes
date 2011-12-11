@@ -57,6 +57,7 @@ direct_to_view = {
 		course + '/create/' + page_type: 'create',
 		page: 'show',
 		page + '/edit': 'edit',
+		page + '/edit_inline': 'inline',
 		page + '/history': 'history',
 		page + '/commit/' + sha: 'commit',
 	}

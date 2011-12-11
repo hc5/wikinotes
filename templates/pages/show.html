@@ -19,6 +19,25 @@
 		<hr />
 		{% include "pages/content.html" %}
 		</div>
+		<div id="editwindow" style="width:100%;position:absolute;display:none">
+		<center>
+			<div style="width:960px;padding:10px;background-color:#FFF;border-style:solid;border-width:1px;border-color:#CCC" id="backdrop">
+			<form id='editform' method='post' action='{{edit_url}}_inline'>
+			<textarea id="textbox" name='content' style='width:920px'>
+			</textarea>
+			<br />
+			<br />
+			<label for='message'>Edit message:</label><input type='text' name='message' style='width:600px' />
+			<input type="hidden" name='start' id='lineStart'/>
+			<input type="hidden" name='end' id='lineEnd'/>
+			<br />
+			
+			<br />
+			<input type='submit' name='submit' value='Save' class='btn danger'>&nbsp;&nbsp; <a class="btn danger" href="javascript:void(0)" onclick="$('#editwindow').fadeOut()">Cancel</a>
+			</form>
+			</div>
+		</center>
+		</div>
 	</section>
 </div>
 {% endblock %}

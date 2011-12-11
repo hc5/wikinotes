@@ -185,9 +185,7 @@ def ucp(request, mode):
 
 def markdown(request):
 	if 'content' in request.POST and 'csrfmiddlewaretoken' in request.POST:
-		data = {
-			'content': request.POST['content']
-		}
+		data = {'content': request.POST['content']}
 		return render(request, 'main/markdown.html', data)
 	else:
 		raise Http404
