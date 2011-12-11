@@ -147,6 +147,7 @@ def register(request):
 		else:
 			return render(request, 'main/registration.html')
 
+
 def ucp(request, mode):
 	# Need a better way of dealing with logged-out users
 	modes = ['overview', 'account', 'profile', 'preferences']
@@ -184,9 +185,7 @@ def ucp(request, mode):
 
 def markdown(request):
 	if 'content' in request.POST and 'csrfmiddlewaretoken' in request.POST:
-		data = {
-			'content': request.POST['content']
-		}
+		data = {'content': request.POST['content']}
 		return render(request, 'main/markdown.html', data)
 	else:
 		raise Http404

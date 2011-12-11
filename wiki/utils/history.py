@@ -1,5 +1,4 @@
 import datetime
-
 # Put here because, why not
 def get_date_x_days_ago(num_days):
 	return datetime.datetime.now() - datetime.timedelta(days=num_days)
@@ -32,3 +31,4 @@ def humanise_timesince(start_time):
 		return "%d minute%s" % (num_minutes, plural(num_minutes))
 
 	return "a few seconds"
+

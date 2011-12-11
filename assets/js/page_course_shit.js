@@ -1,4 +1,6 @@
 $(document).ready(function() {
+
+
 	var showAllSemesters = function() {
 		$('.page-row').show();
 		$('.page-table').show(); // show the tables and the headings
@@ -144,6 +146,9 @@ $(document).ready(function() {
 				$('#content-preview').html(data);
 				MathJax.Hub.Queue(['Typeset', MathJax.Hub, 'content-preview']);
 			},
+			error: function(err,stat,thrown){
+				
+			}
 		});
 		$('#edit-buttons').hide();
 		return false;
@@ -185,4 +190,30 @@ $(document).ready(function() {
 		var usage = $(this).attr('data-usage');
 		setEditButtonMessage(usage, '');
 	});
+	
+	//shit for inline editting
+	
+	
 });
+//shit for inline editting
+var editBlock = function(el){
+	var editBox = $("#edittext-"+el.id.split("-")[1]+"-"+el.id.split("-")[2]);
+	var name =  editBox.attr("name");
+	var start = name.split("-")[0];
+	var end = name.split("-")[1];
+	var txt = editBox.html();
+	var lines = txt.split("\n");
+	var numLines = 0;
+	for(var i =0;i<lines.length;i++){
+		numLines++;
+		numLines+=parseInt(lines[i].length/150);
+	}
+	$("#textbox").css("height",numLines*16+"px");
+	var topPos = $(el).offset().top+10;
+	$("#editwindow").css("top",topPos);
+	$("#lineStart").val(start);
+	$("#lineEnd").val(end);
+	$("#textbox").html(txt)
+	$("#editwindow").show();	
+}
+

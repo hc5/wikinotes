@@ -132,6 +132,7 @@ def watch(request, department, number):
 
 	return overview(request, department, number)
 
+
 def overview(request, department, number):
 	course = get_object_or_404(Course, department=department, number=int(number))
 
