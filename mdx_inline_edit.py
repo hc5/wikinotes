@@ -6,7 +6,6 @@ import re
 class ILEPreprocessor(markdown.preprocessors.Preprocessor):
     def run(self, lines):
         processed_lines = ""
-        
         #a block of src, start/end are the line numbers where it's located in the
         #source of the entire page, so we can merge together the changes
         line_buf = [{
@@ -57,10 +56,11 @@ class ILEPreprocessor(markdown.preprocessors.Preprocessor):
                 #e.g if the last heading was an h2, and this heading is an h1, that means
                 #    the section of text under the h2 has ended and h1 is a start of a new section
                 while cur_level< len(line_buf)+1:
-                    if len(line_buf[-1]['text'])>0:
+                    cur_block = line_buf.pop()
+                    if len(cur_block['text'])>0:
                         
                         cur_block_level = len(line_buf)
-                        cur_block = line_buf.pop()
+                        
                         
                         block_id = "edittext-%d-%d"%(cur_block_level,
                                             block_level_counters[cur_block_level]                                      
@@ -95,9 +95,7 @@ class ILEPreprocessor(markdown.preprocessors.Preprocessor):
                     link_id = "editlink-%d-%d" %(1,heading_level_counters[0])
                     link = link_template % (link_id)
                     link_holder = self.markdown.htmlStash.store(link,safe=True)
-                    heading_level_counters[1]+=1
-                    
-                    
+                    heading_level_counters[1]+=1    
             #for every current level that we have, we must add text to it, because
             #the text of h1 contains the text of all the h2/h3 that are contained in it
             for level in line_buf:
@@ -129,6 +127,7 @@ class ILEPreprocessor(markdown.preprocessors.Preprocessor):
                 block_level_counters[cur_block_level]+=1
                 placeholder = self.markdown.htmlStash.store(code,safe=True)
                 processed_lines+=placeholder+"\n"
+       
         return processed_lines.split("\n")
         
 class ILEExtension(markdown.Extension):
