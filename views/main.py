@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 from django.shortcuts import render
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
@@ -6,7 +8,14 @@ from wiki.models.history import HistoryItem
 from wiki.utils.users import validate_username
 from wiki.models.pages import Page
 from blog.models import BlogPost
-from django.http import Http404
+from django.http import Http404, HttpResponse
+import hashlib
+from mdx_mathjax_cache import cache_dir
+import os
+import sys
+import traceback
+import codecs
+import base64
 
 # welcome is only set to true when called from register()
 # Triggers the display of some sort of welcome message
@@ -187,6 +196,33 @@ def markdown(request):
 	if 'content' in request.POST and 'csrfmiddlewaretoken' in request.POST:
 		data = {'content': request.POST['content']}
 		return render(request, 'main/markdown.html', data)
+	else:
+		raise Http404
+
+def mathjax_cache(request):
+	if request.POST:
+		try:
+			exp = request.POST['exp']
+			parsed = request.POST['parsed']
+			h = hashlib.sha256()
+			h.update(exp)
+			exp_hash = h.hexdigest()
+			try:
+				os.makedirs(cache_dir)
+			except OSError, e:
+				pass
+			try:
+				f = codecs.open(cache_dir+exp_hash,encoding='utf-8',mode="w+")
+				s = parsed.encode('utf-8')
+				f.write((s))
+				f.close()
+				response = HttpResponse(content='^____^')
+				return response
+			except OSError, e:
+				response = HttpResponse(content=':(')
+				return response
+		except:
+			traceback.print_exc(file=sys.stdout)
 	else:
 		raise Http404
 
