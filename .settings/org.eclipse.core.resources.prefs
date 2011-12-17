@@ -1,3 +1,5 @@
-#Tue Dec 06 12:35:54 EST 2011
+#Sat Dec 17 03:23:03 EST 2011
 eclipse.preferences.version=1
+encoding//views/main.py=utf-8
 encoding//wiki/utils/docx_to_md.py=utf-8
+encoding/mdx_mathjax_cache.py=utf-8

@@ -1,6 +1,3 @@
-# encoding: utf-8
-import markdown
-from markdown import etree
 import re
 import hashlib
 import os
@@ -11,87 +8,11 @@ import codecs
 cache_dir = "wiki/cache/mathjax/"
 engine = ""
 to_cache = {}
-class MJCPreprocessor(markdown.preprocessors.Preprocessor):
-	def run(self, lines):
-		processed_lines=""
-		return lines
-	
-class MJCPostprocessor(markdown.postprocessors.Postprocessor):
-	
-	def run(self, text):
-		modified = text
-		for cache in to_cache:
-			modified = modified.replace(cache,to_cache[cache])
-		modified = "\n".join([modified,cache_script])
-		return modified
-
-class MJCPattern(markdown.inlinepatterns.Pattern):
-	config = {}
-	def __init__(self):
-		markdown.inlinepatterns.Pattern.__init__(self, r'(?<!\\)(\$\$?)(.+?)\2')
-		
-	def load(self, exp,type):
-		parsed = ""
-		s=""
-		final_dir = cache_dir+type+"/WebKit/"
-		try:
-			os.makedirs(final_dir)
-		except OSError, e:
-			pass
-		try:
-			cache_file = final_dir+exp
-			#cache = open(cache_file,mode="r+")
-			cache = codecs.open(cache_file,encoding='utf-8',mode='r+')
-			parsed = "".join(cache.readlines())
-			return parsed
-		except:
-			print 'error while trying to read cache'
-			traceback.print_exc(file=sys.stdout)
-			return None
-		
-		
-	
-	def handleMatch(self, m):
-		h = hashlib.sha256()
-		h.update(m.group(3))
-		exp_hash = h.hexdigest()
-		type = ''
-		if m.group(2)=='$$':
-			type = 'block'
-		if m.group(2)=='$':
-			type = 'inline'
-		cache = self.load(exp_hash,type)
-		if(cache):
-			to_cache[exp_hash] = cache
-			return markdown.AtomicString(exp_hash)
-		else:
-			print "not using cache"
-			return markdown.AtomicString(m.group(2) + m.group(3) + m.group(2))
-	
-	
-class MJCExtension(markdown.Extension):
-	def __init__(self, configs):
-		self.config = {'user_agent':"WebKit"}
-		for key in configs:
-			self.setConfig(key, configs[key])
 
 
-	def extendMarkdown(self, md, md_globals):
-		mjcext = MJCPreprocessor(md)
-		user_agent = self.config['user_agent']
-		engines = ["WebKit","Firefox","Trident","Presto"]
-		print user_agent
-		for e in engines:
-			if e in user_agent:
-				engine = e
-		print engine
-		md.preprocessors.add("mjc", mjcext, "_end")
-		md.inlinePatterns.add("mjc",MJCPattern(),"<escape")
-		md.postprocessors.add("mjc",MJCPostprocessor(),"_end")
+def check_cache(txt):
 	
-def makeExtension(configs={}):
-	return MJCExtension(configs=configs)
-
+	return "".join([txt,cache_script])
 
 
 

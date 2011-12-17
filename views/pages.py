@@ -26,6 +26,7 @@ def show(request, department, number, page_type, term, year, slug):
 		'edit_url': page.get_url() + '/edit',
 		'history_url': page.get_url() + '/history'
 	}
+	data['user_agent'] = request.META['HTTP_USER_AGENT']
 	return render(request, "pages/show.html", data)
 
 def history(request, department, number, page_type, term, year, slug):

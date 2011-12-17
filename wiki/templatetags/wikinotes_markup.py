@@ -7,7 +7,7 @@ import mdx_mathjax_cache
 register = template.Library()
 
 md = markdown.Markdown(
-	extensions=['subscript','inline_edit','mathjax_cache' ,'superscript', 'urlize', 'nl2br', 'def_list', 'tables', 'mathjax', 'toc', 'footnotes'], 
+	extensions=['subscript','inline_edit','superscript', 'urlize', 'nl2br', 'def_list', 'tables', 'mathjax', 'toc', 'footnotes'], 
 	safe_mode='escape', 
 	output_format='html4'
 	)
@@ -15,7 +15,7 @@ md = markdown.Markdown(
 
 # NEEDS TESTS
 @register.filter()
-def wikinotes_markdown(value,useragent="None",cache=settings.MATHJAX_CACHE):
+def wikinotes_markdown(value,useragent="None"):
 	#if cache:
 	#	md.registerExtension(mdx_mathjax_cache.makeExtension({'user_agent':useragent}))
 	# Must reset it to clear the footnotes and maybe other stuff too
