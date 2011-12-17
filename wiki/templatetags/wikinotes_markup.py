@@ -1,16 +1,28 @@
 from django import template
 from django.utils.html import escape
 import markdown
-
+import time
+import settings
+import mdx_mathjax_cache
 register = template.Library()
 
-md = markdown.Markdown(extensions=['subscript','mathjax_cache','inline_edit', 'superscript', 'urlize', 'nl2br', 'def_list', 'tables', 'mathjax', 'toc', 'footnotes'], safe_mode='escape', output_format='xhtml1')
+md = markdown.Markdown(
+	extensions=['subscript','inline_edit','mathjax_cache' ,'superscript', 'urlize', 'nl2br', 'def_list', 'tables', 'mathjax', 'toc', 'footnotes'], 
+	safe_mode='escape', 
+	output_format='html4'
+	)
+
 
 # NEEDS TESTS
 @register.filter()
-def wikinotes_markdown(value):
+def wikinotes_markdown(value,useragent="None",cache=settings.MATHJAX_CACHE):
+	#if cache:
+	#	md.registerExtension(mdx_mathjax_cache.makeExtension({'user_agent':useragent}))
 	# Must reset it to clear the footnotes and maybe other stuff too
 	md.reset()
+	start_time = time.time()
 	# Replace \$ with \\$ so that markdown doesn't do anything else to (in conjunction with mathjax's processEscapes)
 	converted =  md.convert(value.replace("\\$", "\\\\$"))
+	elapsed =  time.time() - start_time
+	print "markdown conversion finished in %f" % elapsed
 	return converted

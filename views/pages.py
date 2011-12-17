@@ -24,7 +24,7 @@ def show(request, department, number, page_type, term, year, slug):
 		'page_type': page_type_obj,
 		'content': page.load_content(),
 		'edit_url': page.get_url() + '/edit',
-		'history_url': page.get_url() + '/history',
+		'history_url': page.get_url() + '/history'
 	}
 	return render(request, "pages/show.html", data)
 

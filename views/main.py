@@ -15,7 +15,6 @@ import os
 import sys
 import traceback
 import codecs
-import base64
 
 # welcome is only set to true when called from register()
 # Triggers the display of some sort of welcome message
@@ -195,26 +194,32 @@ def ucp(request, mode):
 def markdown(request):
 	if 'content' in request.POST and 'csrfmiddlewaretoken' in request.POST:
 		data = {'content': request.POST['content']}
+		data['user_agent'] = request.META['HTTP_USER_AGENT']
 		return render(request, 'main/markdown.html', data)
 	else:
 		raise Http404
 
 def mathjax_cache(request):
 	if request.POST:
+		s = ""
 		try:
 			exp = request.POST['exp']
-			parsed = request.POST['parsed']
+			parsed = (request.POST['parsed'])
+			type = request.POST['type']
+			engine = request.POST['layout_engine']
+			engine = 'WebKit'
 			h = hashlib.sha256()
 			h.update(exp)
 			exp_hash = h.hexdigest()
+			final_dir = cache_dir+type+"/"+engine+"/"
+			print final_dir
 			try:
-				os.makedirs(cache_dir)
+				os.makedirs(final_dir)
 			except OSError, e:
 				pass
 			try:
-				f = codecs.open(cache_dir+exp_hash,encoding='utf-8',mode="w+")
-				s = parsed.encode('utf-8')
-				f.write((s))
+				f = codecs.open(final_dir+exp_hash,encoding='utf-8',mode="w+")
+				f.write(parsed)
 				f.close()
 				response = HttpResponse(content='^____^')
 				return response
@@ -222,6 +227,7 @@ def mathjax_cache(request):
 				response = HttpResponse(content=':(')
 				return response
 		except:
+			print s
 			traceback.print_exc(file=sys.stdout)
 	else:
 		raise Http404

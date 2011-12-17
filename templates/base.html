@@ -24,9 +24,8 @@
 	<script src="/static/js/jquery.fieldselection.min.js"></script>
 	<script src="/static/js/page_course_shit.js"></script>
 	<script src="/static/js/jquery.tablesorter.min.js"></script>
-	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+	<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML.js"></script>
 	<script type="text/x-mathjax-config">
-	//<!--
 	MathJax.Hub.Config({
 		jax: ["input/TeX", "output/HTML-CSS"],
 		tex2jax: {
@@ -35,30 +34,6 @@
 			processEscapes: true,
 		}
 	});
-	</script>
-	
-	<script type="text/javascript">
-	MathJax.Hub.Register.MessageHook("New Math",function (message) {
-		var script = $(MathJax.Hub.getJaxFor(message[1]).SourceElement());
-		var raw = script.html();
-		var parsed = script.prev().clone();
-		var html = parsed.wrap("<div>").parent().html();
-		if (html.substring(0,"<div".length)=="<div"){
-			raw = "$$"+raw+"$$";
-		}
-		if (html.substring(0,"<span".length)=="<span"){
-			raw = "$"+raw+"$";
-		}
-		$.post("/mathjax_cache",{
-		'exp':raw,
-		'parsed':html,
-		'csrfmiddlewaretoken':'{{ csrf_token }}'
-		},
-		function(data){
-		}
-		);
-  });
-  //-->
 	</script>
 
 	<!-- Le fav and touch icons --> 

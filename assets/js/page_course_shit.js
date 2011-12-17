@@ -147,7 +147,7 @@ $(document).ready(function() {
 				MathJax.Hub.Queue(['Typeset', MathJax.Hub, 'content-preview']);
 			},
 			error: function(err,stat,thrown){
-				
+			
 			}
 		});
 		$('#edit-buttons').hide();
