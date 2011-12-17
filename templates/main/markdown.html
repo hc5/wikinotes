@@ -1,2 +1,6 @@
 {% load wikinotes_markup %}
+<!-- 
+include user_agent parameter for caching, caching will be disabled
+if the parameter is absent
+-->
 {{ content|wikinotes_markdown:user_agent|safe }}

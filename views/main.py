@@ -207,11 +207,10 @@ def mathjax_cache(request):
 			parsed = (request.POST['parsed'])
 			type = request.POST['type']
 			engine = request.POST['layout_engine']
-			engine = 'WebKit'
 			h = hashlib.sha256()
 			h.update(exp)
 			exp_hash = h.hexdigest()
-			final_dir = cache_dir+type+"/"+engine+"/"
+			final_dir = cache_dir+engine+"/"+type+"/"
 			print final_dir
 			try:
 				os.makedirs(final_dir)
