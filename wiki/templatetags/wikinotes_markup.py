@@ -1,5 +1,7 @@
 from django import template
 from django.utils.html import escape
+from sys import path
+import settings
 import markdown
 import re
 
@@ -14,6 +16,8 @@ Standard extensions used, unmodified:
 
 All extensions beginning with wiki_ are modified version of standard extensions.
 """
+mdx_path = settings.wikinotes_dir+"mdx"
+path.append(mdx_path)
 md = markdown.Markdown(extensions=['footnotes', 'wiki_toc', 'downheader', 'wiki_tables', 'wiki_codehilite', 'wiki_fenced_code', 'wiki_def_list', 'nl2br', 'subscript', 'superscript', 'mathjax', 'urlize'], safe_mode='escape', output_format='xhtml1')
 
 # NEEDS TESTS
