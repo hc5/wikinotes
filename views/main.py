@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.db import transaction
+from django.db import transaction, connection
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from wiki.models.courses import Course
@@ -12,20 +12,63 @@ from urls import static_urls
 import os
 import json
 import hashlib
-
+from wiki.utils.profiler import profiler
 # welcome is only set to true when called from register()
 # Triggers the display of some sort of welcome message
+
 def index(request, show_welcome=False):
 	if request.user.is_authenticated():
+		page_cache = {}
+		course_cache = {}
+		user_cache = {}
 		user = request.user.get_profile()
 		watched_courses = user.courses.all()
-
+		cursor = connection.cursor()
+		def parse(row):
+			temp_action = HistoryItem()
+			temp_action.action = row[0]
+			temp_action.timestamp = row[1]
+			if row[2] in page_cache:
+				temp_action.page = page_cache[row[2]]
+			else:
+				try:
+					temp_action.page = Page.objects.get(pk=row[2])
+					page_cache[row[2]] = temp_action.page
+				except Page.DoesNotExist:
+					temp_action.page = None
+			temp_action.message = row[3]
+			if row[4] in course_cache:
+				temp_action.course = course_cache[row[4]]
+			else:
+				temp_action.course = Course.objects.get(pk=row[4])
+				course_cache[row[4]] = temp_action.course
+			return temp_action
+		
+		
 		# First get things done to courses user is watching (exclude self actions)
-		history_items = HistoryItem.objects.filter(course__in=watched_courses).exclude(user=request.user)
-
+		cursor.execute('SELECT action,timestamp,page_id,message,course_id,user_id FROM wiki_historyitem \
+						WHERE ("wiki_historyitem"."course_id" IN \
+						(SELECT U0."id" FROM "wiki_course" U0 INNER JOIN "wiki_userprofile_courses" U1 ON (U0."id" = U1."course_id")\
+						 WHERE U1."userprofile_id" = %s ) AND NOT ("wiki_historyitem"."user_id" = %s )) ORDER BY timestamp DESC LIMIT 10'%(user.pk,user.pk))
+		history_items = [];
+		for row in cursor.fetchall():
+			temp_action = parse(row)
+			if row[5] in user_cache:
+				temp_action.user = user_cache[row[5]]
+			else:
+				temp_action.user = User.objects.get(pk=row[5])
+				user_cache[row[5]] = temp_action.user
+			history_items.append(temp_action)
+			
+			
 		# Now get things the user has done
-		your_actions = HistoryItem.objects.filter(user=user).order_by('-timestamp')
-
+		cursor.execute("SELECT action,timestamp,page_id,message,course_id FROM wiki_historyitem \
+						WHERE user_id = %s ORDER BY timestamp DESC LIMIT 10"%user.pk)
+		your_actions = [];
+		for row in cursor.fetchall():
+			your_actions.append(parse(row))
+			
+			
 		try:
 			latest_post = BlogPost.objects.order_by('-timestamp')[0]
 		except IndexError:
@@ -35,7 +78,7 @@ def index(request, show_welcome=False):
 		data = {
 			'watched_courses': watched_courses,
 			'your_actions': your_actions,
-			'history_items': history_items[::-1],
+			'history_items': history_items,
 			'show_welcome': show_welcome,
 			'latest_post': latest_post
 		}
