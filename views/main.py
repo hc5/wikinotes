@@ -20,102 +20,131 @@ import hashlib
 
 def index(request, show_welcome=False):
 	if request.user.is_authenticated():
-		page_cache = {}
-		course_cache = {}
-		user_cache = {}
+		page_cache={}
+		course_cache={}
+		user_cache={}
 		user = request.user.get_profile()
 		watched_courses = user.courses.all()
+		columns = (
+		#hardcoding the indices because table lookups are more expensive
+		"wiki_historyitem.user_id",#[0]
+		"wiki_historyitem.action",#[1]
+		"wiki_historyitem.timestamp",#[2]
+		"wiki_historyitem.message",#[3]
+		"wiki_coursesemester.term",#[4]
+		"wiki_coursesemester.year",#[5]
+		"wiki_page.slug",#[6]
+		"wiki_page.page_type",#[7]
+		"wiki_page.title",#[8]
+		"wiki_page.subject",#[9]
+		"wiki_department.short_name",#[10]
+		"wiki_course.number",#[11]
+		"wiki_page.id",#[12]
+		"wiki_course.id"#[13]
+				)
+		columns_place_holder = (",".join(["%s"]*len(columns)))
+		def parse_result_table(res,get_user):
+			#initialize caches
+			if not hasattr(parse_result_table,"course_cache"):
+				parse_result_table.course_cache = {}
+			if not hasattr(parse_result_table,"page_cache"):
+				parse_result_table.page_cache = {}
+			if not hasattr(parse_result_table,"user_cache"):
+				parse_result_table.user_cache = {}
+			if not hasattr(parse_result_table,"cs_cache"):#coursesemester
+				parse_result_table.cs_cache = {}
+				
+			items = []
+			for row in res:
+				item = HistoryItem()
+				course = None
+				page = None
+				if get_user:
+					if row[0] in parse_result_table.user_cache:
+						item.user = parse_result_table.user_cache[row[0]]
+					else:
+						item.user = User.objects.get(pk=row[0])
+						parse_result_table.user_cache[row[0]] = item.user
+				item.action = row[1]
+				item.timestamp = row[2]
+				item.message = row[3]
+				
+				#create the course associated with this history
+				if row[13] in parse_result_table.course_cache:
+					course = parse_result_table.course_cache[row[13]]
+				else:
+					course = Course()
+					department = Department()
+					department.short_name = row[10]
+					course.department = department
+					course.number = row[11]
+					parse_result_table.course_cache[row[13]] = course
+				item.course = course
+				
+				#no pages associated with this history, we're done
+				if not row[12]:
+					items.append(item)
+					continue
+				
+				#get the page associated with this history
+				if row[12] in parse_result_table.page_cache:
+					page = parse_result_table.page_cache[row[12]]
+				else:
+					page = Page()
+					page.course = course;
+					page.page_type = row[7]
+					coursesemester = None
+					if "%s%s"%(row[4],row[5]) in parse_result_table.cs_cache:
+						coursesemester = parse_result_table.cs_cache["%s%s"%(row[4],row[5])]
+					else:
+						coursesemester = CourseSemester()
+						coursesemester.course = course
+						coursesemester.term = row[4]
+						coursesemester.year = row[5]
+						parse_result_table.cs_cache["%s%s"%(row[4],row[5])] = coursesemester
+					page.course_sem = coursesemester
+					page.title = row[8]
+					page.subject = row[9]
+					page.slug = row[6]
+					parse_result_table.page_cache[row[12]] = page
+				item.page = page
+				items.append(item)
+			return items
 		cursor = connection.cursor()
-		def get_page(pk):
-			if pk in page_cache:
-				return page_cache[pk]
-			cursor.execute("select wiki_coursesemester.course_id,page_type,\
-							wiki_coursesemester.term,wiki_coursesemester.year,wiki_page.title,wiki_page.subject,\
-							slug from wiki_page inner join wiki_coursesemester\
-							 on wiki_page.course_sem_id = wiki_coursesemester.id where wiki_page.id=%s" %pk);
-			res = cursor.fetchone()
-			newpage = Page();
-			newpage.course = get_course(res[0])
-			newpage.page_type = res[1]
-			coursesemester = CourseSemester()
-			coursesemester.term = res[2]
-			coursesemester.year = res[3]
-			newpage.course_sem = coursesemester
-			newpage.title = res[4]
-			newpage.subject = res[5]
-			newpage.slug = res[6]
-			page_cache[pk]=newpage
-			return newpage
-		
-		def get_course(pk):
-			if pk in course_cache:
-				return course_cache[pk]
-			cursor.execute("select department_id,number from wiki_course where id=%s"%pk)
-			res = cursor.fetchone()
-			course = Course()
-			department = Department()
-			department.short_name = res[0]
-			course.department = department
-			course.number = res[1]
-			course_cache[pk]=course
-			return course
-			
-		def parse(row):
-			temp_action = HistoryItem()
-			temp_action.action = row[2]
-			temp_action.timestamp = row[3]
-			page_pk = row[4]
-			if page_pk in page_cache:
-				temp_action.page = page_cache[page_pk]
-			else:
-				try:
-					temp_action.page = get_page(page_pk)
-				except DatabaseError:
-					temp_action.page = None
-			temp_action.message = row[5]
-			course_pk = row[6]
-			if course_pk in course_cache:
-				temp_action.course = course_cache[course_pk]
-			else:
-				temp_action.course = get_course(course_pk)
-			return temp_action
-		
 		# First get things done to courses user is watching (exclude self actions)
-		cursor.execute('SELECT * FROM wiki_historyitem \
-						WHERE ("wiki_historyitem"."course_id" IN \
-						(SELECT U0."id" FROM "wiki_course" U0 INNER JOIN "wiki_userprofile_courses" U1 ON (U0."id" = U1."course_id")\
-						 WHERE U1."userprofile_id" = %s ) AND NOT ("wiki_historyitem"."user_id" = %s )) ORDER BY timestamp DESC limit 10'%(user.pk,user.pk))
-		history_items = [];
-		for row in cursor.fetchall():
-			temp_action = parse(row)
-			if row[1] in user_cache:
-				temp_action.user = user_cache[row[1]]
-			else:
-				temp_action.user = User.objects.get(pk=row[1])
-				user_cache[row[1]] = temp_action.user
-			history_items.append(temp_action)
-			
-			
+		cursor.execute(("\
+		SELECT "+columns_place_holder+'\
+		FROM wiki_historyitem\
+		JOIN wiki_course ON wiki_course.id = wiki_historyitem.course_id\
+		JOIN wiki_department ON wiki_course.department_id = wiki_department.short_name\
+		OUTER LEFT JOIN wiki_page ON wiki_page.id=wiki_historyitem.page_id\
+		OUTER LEFT JOIN wiki_coursesemester ON wiki_coursesemester.id=wiki_page.course_sem_id\
+		WHERE ("wiki_historyitem"."course_id" IN\
+		(SELECT U0."id" FROM "wiki_course" U0 INNER JOIN "wiki_userprofile_courses" U1 ON (U0."id" = U1."course_id")\
+		WHERE U1."userprofile_id" = %s ) AND NOT ("wiki_historyitem"."user_id" = %s ))\
+		ORDER BY timestamp DESC\
+		LIMIT 10')%(columns+(user.pk,user.pk)))
+		history_items = parse_result_table(cursor.fetchall(),True);
 		# Now get things the user has done
-		cursor.execute("SELECT * FROM wiki_historyitem \
-						WHERE user_id = %s ORDER BY timestamp DESC limit 10"%user.pk)
-		your_actions = [];
-		for row in cursor.fetchall():
-			your_actions.append(parse(row))
-			
-			
-		try:
-			latest_post = BlogPost.objects.order_by('-timestamp')[0]
-		except IndexError:
-			latest_post = {'title': 'Nothing', 'summary': 'Nothing'}
-
+		cursor.execute(("\
+		SELECT "+columns_place_holder+"\
+		FROM wiki_historyitem\
+		JOIN wiki_course ON wiki_course.id = wiki_historyitem.course_id\
+		JOIN wiki_department ON wiki_course.department_id = wiki_department.short_name\
+		OUTER LEFT JOIN wiki_page ON wiki_page.id=wiki_historyitem.page_id\
+		OUTER LEFT JOIN wiki_coursesemester ON wiki_coursesemester.id=wiki_page.course_sem_id\
+		WHERE wiki_historyitem.user_id = %s\
+		ORDER BY timestamp DESC\
+		LIMIT 10")%(columns+(user.pk,)))
+		your_actions = parse_result_table(cursor.fetchall(),False)	
+		
 		# Show the user's dashboard
 		data = {
 			'watched_courses': watched_courses,
 			'your_actions': your_actions,
 			'history_items': history_items,
 			'show_welcome': show_welcome,
-			'latest_post': latest_post
+			'latest_post': None
 		}
 		return render(request, 'main/dashboard.html', data)
 	else:
