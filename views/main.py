@@ -1,8 +1,11 @@
 from django.shortcuts import render, redirect
 from django.db import transaction, connection
+from django.db import DatabaseError
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from wiki.models.courses import Course
+from wiki.models.departments import Department
+from wiki.models.courses import CourseSemester
 from wiki.models.history import HistoryItem
 from wiki.utils.users import validate_username
 from wiki.models.pages import Page,MathjaxCache
@@ -12,7 +15,6 @@ from urls import static_urls
 import os
 import json
 import hashlib
-from wiki.utils.profiler import profiler
 # welcome is only set to true when called from register()
 # Triggers the display of some sort of welcome message
 
@@ -24,46 +26,79 @@ def index(request, show_welcome=False):
 		user = request.user.get_profile()
 		watched_courses = user.courses.all()
 		cursor = connection.cursor()
+		def get_page(pk):
+			if pk in page_cache:
+				return page_cache[pk]
+			cursor.execute("select wiki_coursesemester.course_id,page_type,\
+							wiki_coursesemester.term,wiki_coursesemester.year,wiki_page.title,wiki_page.subject,\
+							slug from wiki_page inner join wiki_coursesemester\
+							 on wiki_page.course_sem_id = wiki_coursesemester.id where wiki_page.id=%s" %pk);
+			res = cursor.fetchone()
+			newpage = Page();
+			newpage.course = get_course(res[0])
+			newpage.page_type = res[1]
+			coursesemester = CourseSemester()
+			coursesemester.term = res[2]
+			coursesemester.year = res[3]
+			newpage.course_sem = coursesemester
+			newpage.title = res[4]
+			newpage.subject = res[5]
+			newpage.slug = res[6]
+			page_cache[pk]=newpage
+			return newpage
+		
+		def get_course(pk):
+			if pk in course_cache:
+				return course_cache[pk]
+			cursor.execute("select department_id,number from wiki_course where id=%s"%pk)
+			res = cursor.fetchone()
+			course = Course()
+			department = Department()
+			department.short_name = res[0]
+			course.department = department
+			course.number = res[1]
+			course_cache[pk]=course
+			return course
+			
 		def parse(row):
 			temp_action = HistoryItem()
-			temp_action.action = row[0]
-			temp_action.timestamp = row[1]
-			if row[2] in page_cache:
-				temp_action.page = page_cache[row[2]]
+			temp_action.action = row[2]
+			temp_action.timestamp = row[3]
+			page_pk = row[4]
+			if page_pk in page_cache:
+				temp_action.page = page_cache[page_pk]
 			else:
 				try:
-					temp_action.page = Page.objects.get(pk=row[2])
-					page_cache[row[2]] = temp_action.page
-				except Page.DoesNotExist:
+					temp_action.page = get_page(page_pk)
+				except DatabaseError:
 					temp_action.page = None
-			temp_action.message = row[3]
-			if row[4] in course_cache:
-				temp_action.course = course_cache[row[4]]
+			temp_action.message = row[5]
+			course_pk = row[6]
+			if course_pk in course_cache:
+				temp_action.course = course_cache[course_pk]
 			else:
-				temp_action.course = Course.objects.get(pk=row[4])
-				course_cache[row[4]] = temp_action.course
+				temp_action.course = get_course(course_pk)
 			return temp_action
 		
-		
 		# First get things done to courses user is watching (exclude self actions)
-		cursor.execute('SELECT action,timestamp,page_id,message,course_id,user_id FROM wiki_historyitem \
+		cursor.execute('SELECT * FROM wiki_historyitem \
 						WHERE ("wiki_historyitem"."course_id" IN \
 						(SELECT U0."id" FROM "wiki_course" U0 INNER JOIN "wiki_userprofile_courses" U1 ON (U0."id" = U1."course_id")\
-						 WHERE U1."userprofile_id" = %s ) AND NOT ("wiki_historyitem"."user_id" = %s )) ORDER BY timestamp DESC LIMIT 10'%(user.pk,user.pk))
+						 WHERE U1."userprofile_id" = %s ) AND NOT ("wiki_historyitem"."user_id" = %s )) ORDER BY timestamp DESC limit 10'%(user.pk,user.pk))
 		history_items = [];
 		for row in cursor.fetchall():
 			temp_action = parse(row)
-			if row[5] in user_cache:
-				temp_action.user = user_cache[row[5]]
+			if row[1] in user_cache:
+				temp_action.user = user_cache[row[1]]
 			else:
-				temp_action.user = User.objects.get(pk=row[5])
-				user_cache[row[5]] = temp_action.user
+				temp_action.user = User.objects.get(pk=row[1])
+				user_cache[row[1]] = temp_action.user
 			history_items.append(temp_action)
 			
 			
 		# Now get things the user has done
-		cursor.execute("SELECT action,timestamp,page_id,message,course_id FROM wiki_historyitem \
-						WHERE user_id = %s ORDER BY timestamp DESC LIMIT 10"%user.pk)
+		cursor.execute("SELECT * FROM wiki_historyitem \
+						WHERE user_id = %s ORDER BY timestamp DESC limit 10"%user.pk)
 		your_actions = [];
 		for row in cursor.fetchall():
 			your_actions.append(parse(row))
