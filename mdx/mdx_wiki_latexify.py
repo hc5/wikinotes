@@ -28,11 +28,13 @@ doc_template = """
 \usepackage{calc}
 \usepackage{fontspec}
 \usepackage{fancyhdr}
-
+\usepackage{setspace}
 
 \setlength{\\parindent}{0in}
+\setlength{\\parskip}{0.2in}
 \setmonofont{Consolas}
-\setmainfont{Helvetica LT}
+\setmainfont[SizeFeatures={Size={12}}]{Adobe Garamond Pro}
+\onehalfspacing
 \\newfontfamily\\headingfont{TradeGothic LT Bold}
 \usepackage[margin=0.8in]{geometry}
 
@@ -306,7 +308,7 @@ class LatexifyPostprocessor(markdown.postprocessors.Postprocessor):
 
 
 		doc = "<div>%s</div>" % (text,)
-
+		doc = doc.replace("&para;", "")
 		root = etree.XML(doc)
 		latex = self.latexify_node(root)
 		doc = """
@@ -315,12 +317,11 @@ class LatexifyPostprocessor(markdown.postprocessors.Postprocessor):
 
 \\pagestyle{fancy}
 
-\\rhead{{\color{numbering} this document and many others can be found at {\color{linkcolour} \\href{%s}{%s}}}}
 \\renewcommand{\headrulewidth}{0pt}
 \\cfoot{}
 %s
 \\end{document}
-		""" % (doc_template, self.domain, self.domain, latex)
+		""" % (doc_template,  latex)
 		doc = unescape_html_entities(doc)
 		encoded = doc.encode("utf-8")
 		encoded = clear_reserve_tokens(encoded)
@@ -626,6 +627,7 @@ class LatexifyPostprocessor(markdown.postprocessors.Postprocessor):
 					# No match
 					lines.insert(0, first)
 			text = "\n".join(lines)
+			lang = "java"
 			if lang:
 				text = "\\begin{lstlisting}[style=%s]\n%s\\end{lstlisting}" % (lang, text)
 			else:
