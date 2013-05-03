@@ -40,10 +40,10 @@ class TocTreeprocessor(markdown.treeprocessors.Treeprocessor):
 		header_rgx = re.compile("[Hh][123456]")
 
 		# Get a list of id attributes
-		used_ids = []
+		used_ids = set()
 		for c in doc.getiterator():
 			if "id" in c.attrib:
-				used_ids.append(c.attrib["id"])
+				used_ids.add(c.attrib["id"])
 
 		last_numbers = [0] * 5
 		last_tag_level = 0
